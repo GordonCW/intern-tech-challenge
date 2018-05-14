@@ -12,6 +12,12 @@ import (
 	"github.com/google/go-github/github"
 )
 
+type InputRepo struct {
+	owner string
+	repo string
+	min string
+}
+
 // LatestVersions returns a sorted slice with the highest version as its first element and the highest version of the smaller minor versions in a descending order
 func LatestVersions(releases []*semver.Version, minVersion *semver.Version) []*semver.Version {
 	var versionSlice []*semver.Version
@@ -20,14 +26,14 @@ func LatestVersions(releases []*semver.Version, minVersion *semver.Version) []*s
 
 	// filter out the old versions
 	for _, v := range releases {
-		if !v.LessThan(*minVersion) {
+		if !v.LessThan(*minVersion) && v.PreRelease == "" {
 			versionSlice = append(versionSlice, v)
 		}
 	}
 
 	// sort the versionSlice in descending order
 	sort.Sort(sort.Reverse(semver.Versions(versionSlice)))
-	fmt.Println(versionSlice)
+	// fmt.Println(versionSlice)
 
 	// take for each minor the highest patch for that minor
 	if len(versionSlice)>0 {
@@ -47,12 +53,6 @@ func LatestVersions(releases []*semver.Version, minVersion *semver.Version) []*s
 
 
 	return result
-}
-
-type InputRepo struct {
-	owner string
-	repo string
-	min string
 }
 
 // Here we implement the basics of communicating with github through the library as well as printing the version
