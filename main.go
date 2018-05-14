@@ -18,11 +18,16 @@ type InputRepo struct {
 	min string
 }
 
+func sameRelease(r1, r2 *semver.Version) bool {
+	preMajor := r1.Major
+	preMinor := r1.Minor
+	return (preMajor == r2.Major && preMinor == r2.Minor)
+}
+
 // LatestVersions returns a sorted slice with the highest version as its first element and the highest version of the smaller minor versions in a descending order
 func LatestVersions(releases []*semver.Version, minVersion *semver.Version) []*semver.Version {
 	var versionSlice []*semver.Version
 	var result []*semver.Version
-	// fmt.Println(minVersion)
 
 	// filter out the old versions
 	for _, v := range releases {
@@ -33,24 +38,18 @@ func LatestVersions(releases []*semver.Version, minVersion *semver.Version) []*s
 
 	// sort the versionSlice in descending order
 	sort.Sort(sort.Reverse(semver.Versions(versionSlice)))
-	// fmt.Println(versionSlice)
 
 	// take for each minor the highest patch for that minor
 	if len(versionSlice)>0 {
 		result = append(result, versionSlice[0])
-		preMajor := versionSlice[0].Major
-		preMinor := versionSlice[0].Minor
+		preRelease := versionSlice[0]
 		for _, v := range versionSlice{
-			if !(v.Major == preMajor && v.Minor == preMinor) {
+			if !sameRelease(preRelease, v) {
 				result = append(result, v)
-				preMajor = v.Major
-				preMinor = v.Minor
+				preRelease = v
 			}
 		}
 	}
-
-	// fmt.Println(result)
-
 
 	return result
 }
@@ -64,17 +63,20 @@ func main() {
 	var input []InputRepo
 
 	// open the input file
-	if len(os.Args) == 1 {
+	if len(os.Args) <= 1 {
 		fmt.Println("Please input a path to an input file!")
 		os.Exit(1)
 	}
 
+	// open file
 	f, err := os.Open(os.Args[1])
 	if err != nil {
-		// do something
-    }
+		fmt.Println(err)
+		os.Exit(2)
+    }	
     defer f.Close()
 
+    // read file
     scanner := bufio.NewScanner(f)
     scanner.Scan()
 	for scanner.Scan() {
@@ -89,24 +91,28 @@ func main() {
 	opt := &github.ListOptions{PerPage: 10}
 	for _, inputRepo := range input {
 		
+		// get releases content
 		releases, _, err := client.Repositories.ListReleases(ctx, inputRepo.owner, inputRepo.repo, opt)
 		if err != nil {
-			panic(err) // is this really a good way?
+			// panic(err) // is this really a good way?
+			fmt.Println(err)
+			fmt.Printf("The repository name %s/%s may be incorrect!!!\n", inputRepo.owner, inputRepo.repo)
+			continue
 		}
-		// fmt.Println(releases)
-		minVersion := semver.New(inputRepo.min)
+
+		// extract versions
+		minTrimmedSpace := strings.TrimSpace(inputRepo.min)
+		minVersion := semver.New(minTrimmedSpace)
 		allReleases := make([]*semver.Version, len(releases))
 		for i, release := range releases {
 			versionString := *release.TagName
-			// fmt.Println(versionString)
 			if versionString[0] == 'v' {
 				versionString = versionString[1:]
 			}
 			allReleases[i] = semver.New(versionString)
 		}
-		// fmt.Println("list of allReleases: \n", allReleases)
-		versionSlice := LatestVersions(allReleases, minVersion)
 
+		versionSlice := LatestVersions(allReleases, minVersion)
 		fmt.Printf("latest versions of %s/%s: %s\n", inputRepo.owner, inputRepo.repo, versionSlice)
 	}
 
