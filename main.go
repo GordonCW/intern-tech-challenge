@@ -73,12 +73,12 @@ func main() {
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(2)
-    }	
-    defer f.Close()
+	}   
+	defer f.Close()
 
-    // read file
-    scanner := bufio.NewScanner(f)
-    scanner.Scan()
+	// read file
+	scanner := bufio.NewScanner(f)
+	scanner.Scan()
 	for scanner.Scan() {
 		line := strings.Split(scanner.Text(), ",")
 		repo := strings.Split(line[0], "/")
